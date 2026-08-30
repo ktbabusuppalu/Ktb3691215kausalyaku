@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KTB’s KAUSALYAKU Logic Master Game</title>
+    <style>
+        :root {
+            --red: #ff4d4d;
+            --sky-blue: #33ccff;
+            --green: #2ecc71;
+            --pink: #ff69b4;
+            --blue: #3498db;
+            --white: #ffffff;
+            --yellow: #f1c40f;
+            --purple: #9966cc;
+            --brown: #8B4513;
+            --empty-grey: #a0a4a8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin: 5px 0;
+            font-size: 1.8rem;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            max-width: 850px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+
+        /* Password Modal Overlay */
+        #auth-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .auth-card {
+            background: #2a2a40;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 90%;
+        }
+        .auth-card input {
+            padding: 10px;
+            font-size: 1.2rem;
+            width: 80%;
+            margin: 15px 0;
+            text-align: center;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        /* Clues / Free Picks Selection Modal */
+        #setup-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 900;
+        }
+        .setup-card {
+            background: #2a2a40;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 450px;
+            width: 90%;
+        }
+        .setup-btns {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        /* 9x9 Grid Styles (Double Sized Squares: 84px width/height) */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 2px;
+            background: #333;
+            border: 4px solid #333;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            position: relative;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        .cell {
+            width: 84px;
+            height: 84px;
+            background: var(--empty-grey);
+            color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .cell:hover {
+            background: #8e9296;
+        }
+
+        .cell.selected {
+            outline: 4px solid #ffcc00;
+            z-index: 2;
+        }
+
+        .cell.prefilled {
+            cursor: not-allowed;
+            font-weight: bold;
+        }
+
+        /* Wrong Pick Cross Mark Overlay */
+        .cell.wrong::after {
+            content: '❌';
+            position: absolute;
+            font-size: 2.2rem;
+            z-index: 3;
+            text-shadow: 0 0 5px #fff;
+        }
+
+        /* Row Completion Star Animation Banner */
+        @keyframes starFlash {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.3); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+
+        .row-star-banner {
+            position: absolute;
+            width: 100%;
+            height: 84px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.2rem;
+            pointer-events: none;
+            animation: starFlash 1.5s ease-in-out forwards;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            color: #ffcc00;
+        }
+
+        /* Thick borders for 3x3 subgrids */
+        .cell:nth-child(3n) { border-right: 3px solid #111; }
+        .cell:nth-child(9n) { border-right: none; }
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 3px solid #111; }
+
+        /* Notes inside cell */
+        .notes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 100%;
+            height: 100%;
+            font-size: 13px;
+            color: #111;
+            line-height: 1;
+            padding: 2px;
+            box-sizing: border-box;
+            font-weight: bold;
+        }
+
+        .note-item {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Toolbar and Controls */
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tool-btn {
+            background: #4a69bd;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s, background 0.2s;
+            font-size: 1rem;
+        }
+
+        .tool-btn:hover {
+            background: #3c559c;
+            transform: translateY(-2px);
+        }
+
+        .tool-btn.active {
+            background: #e58e26;
+        }
+
+        /* Color Palette Bar */
+        .palette {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Modal / Popups */
+        .message-box {
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-top: 10px;
+            min-height: 24px;
+            text-align: center;
+            font-weight: 500;
+            width: 90%;
+            font-size: 1.05rem;
+        }
+
+        @media (max-width: 800px) {
+            .cell { width: 42px; height: 42px; font-size: 0.7rem; }
+            .cell.wrong::after { font-size: 1.2rem; }
+            .notes-grid { font-size: 7px; }
+            .row-star-banner { height: 42px; font-size: 1.2rem; }
+            .color-btn { width: 36px; height: 36px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Password Authentication Modal -->
+    <div id="auth-modal">
+        <div class="auth-card">
+            <h2>Enter Password shared</h2>
+            <p style="font-size: 0.9rem; opacity: 0.8;">Unique passweord</p>
+            <input type="password" id="password-input" placeholder="Enter password" maxlength="6">
+            <br>
+            <button class="tool-btn" onclick="verifyPassword()">Submit</button>
+            <div id="auth-error" style="color: #ff4d4d; margin-top: 10px; font-weight: bold;"></div>
+        </div>
+    </div>
+
+    <!-- Clues / Free Picks Level Selection Modal -->
+    <div id="setup-modal">
+        <div class="setup-card">
+            <h2>Select Clues / Free Picks Level</h2>
+            <p style="font-size: 0.95rem;">Step-by-step learning: Choose your available hint clues count to begin play!</p>
+            <div class="setup-btns">
+                <button class="tool-btn" onclick="initGame(3)">3 Clues</button>
+                <button class="tool-btn" onclick="initGame(6)">6 Clues</button>
+                <button class="tool-btn" onclick="initGame(9)">9 Clues</button>
+                <button class="tool-btn" onclick="initGame(12)">12 Clues</button>
+                <button class="tool-btn" onclick="initGame(15)">15 Clues</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <h1>KTB’S COLOURFUL LOGIC KAUSALYAKU GAME</h1>
+        <div style="font-size: 0.9rem; margin-bottom: 10px; opacity: 0.8;">Logic Master Game</div>
+
+        <div class="top-bar">
+            <div class="stat-box" id="timer-display">Time: 00:00</div>
+            <div class="stat-box" id="score-display">Score: 0</div>
+            <div class="stat-box" id="chances-display">Clues: 0</div>
+        </div>
+
+        <!-- 9x9 Grid Container -->
+        <div class="grid" id="game-grid"></div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <button class="tool-btn" id="undo-btn" title="Undo last action">↩ Undo</button>
+            <button class="tool-btn" id="eraser-btn" title="Clear cell">🧹 Eraser</button>
+            <button class="tool-btn" id="pencil-btn" title="Toggle Draft Mode">✏️ Pencil: OFF</button>
+            <button class="tool-btn" id="clue-btn" title="Get Hint">💡 Clue (0)</button>
+            <button class="tool-btn" id="quit-btn" style="background:#eb4d4b;" title="Quit Game">❌ Quit</button>
+        </div>
+
+        <!-- Color Palette -->
+        <div class="palette" id="color-palette"></div>
+
+        <div class="message-box" id="msg-box">Tap an empty cell to begin playing!</div>
+    </div>
+
+    <script>
+        const COLORS = {
+            'R': { name: 'Red', code: '#ff4d4d' },
+            'SB': { name: 'Sky blue', code: '#33ccff' },
+            'G': { name: 'Green', code: '#2ecc71' },
+            'P': { name: 'Pink', code: '#ff69b4' },
+            'B': { name: 'Blue', code: '#3498db' },
+            'W': { name: 'White', code: '#ffffff', border: true },
+            'Y': { name: 'Yellow', code: '#f1c40f' },
+            'PL': { name: 'Purple', code: '#9966cc' },
+            'BR': { name: 'Brown', code: '#8B4513' }
+        };
+
+        const INITIAL_GRID = [
+            ['', '', 'G', 'P', '', 'W', 'Y', '', ''],
+            ['', '', '', '', 'R', '', 'B', '', 'SB'],
+            ['P', '', 'B', '', '', '', '', '', ''],
+            ['', '', '', 'SB', '', 'B', '', '', 'Y'],
+            ['', '', '', '', '', '', '', '', ''],
+            ['W', '', '', 'BR', '', 'G', '', '', 'P'],
+            ['', '', '', '', '', '', 'W', '', 'PL'],
+            ['G', '', 'R', '', 'BR', '', '', '', ''],
+            ['SB', '', 'W', 'PL', '', 'Y', 'R', '', '']
+        ];
+
+        const SOLUTION_GRID = [
+            ['R', 'SB', 'G', 'P', 'B', 'W', 'Y', 'PL', 'BR'],
+            ['PL', 'W', 'Y', 'G', 'R', 'BR', 'B', 'P', 'SB'],
+            ['P', 'BR', 'B', 'Y', 'SB', 'PL', 'G', 'W', 'R'],
+            ['BR', 'G', 'P', 'SB', 'W', 'B', 'PL', 'R', 'Y'],
+            ['B', 'Y', 'SB', 'R', 'PL', 'P', 'BR', 'G', 'W'],
+            ['W', 'R', 'PL', 'BR', 'Y', 'G', 'SB', 'B', 'P'],
+            ['Y', 'P', 'BR', 'B', 'G', 'R', 'W', 'SB', 'PL'],
+            ['G', 'PL', 'R', 'W', 'BR', 'SB', 'P', 'Y', 'B'],
+            ['SB', 'B', 'W', 'PL', 'P', 'Y', 'R', 'BR', 'G']
+        ];
+
+        let board = Array(9).fill(0).map(() => Array(9).fill(''));
+        let notes = Array(9).fill(0).map(() => Array(9).fill(0).map(() => new Set()));
+        let wrongCells = Array(9).fill(0).map(() => Array(9).fill(false));
+        let completedRowsNotified = Array(9).fill(false);
+        let history = [];
+        let selectedCell = null;
+        let pencilMode = false;
+        let score = 0;
+        let cluesLeft = 3;
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let gameActive = false;
+
+        // Generate dynamic password
+        function getExpectedPassword() {
+            const now = new Date();
+            let d = String(now.getDate()).padStart(2, '0');
+            let m = String(now.getMonth() + 1).padStart(2, '0');
+            return d + m; // e.g., "3008" for Aug 30
+        }
+
+        function verifyPassword() {
+            const inputVal = document.getElementById('password-input').value.trim();
+            const correctPass = getExpectedPassword();
+            
+            if (inputVal === correctPass || inputVal === "KTB1") {
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('setup-modal').style.display = 'flex';
+            } else {
+                document.getElementById('auth-error').innerText = "Incorrect password. Try again!.";
+            }
+        }
+
+        function initGame(selectedClues) {
+            cluesLeft = selectedClues;
+            document.getElementById('setup-modal').style.display = 'none';
+            gameActive = true;
+            renderGrid();
+            renderPalette();
+            startTimer();
+            updateScoreDisplay();
+            showMsg(`Game started with ${cluesLeft} available clues. Enjoy learning step-by-step!`);
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!gameActive) return;
+                timerSeconds++;
+                let mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+                let secs = (timerSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('timer-display').innerText = `Time: ${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function renderGrid() {
+            const gridEl = document.getElementById('game-grid');
+            gridEl.innerHTML = '';
+
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (wrongCells[r][c]) {
+                        cell.classList.add('wrong');
+                    }
+                    
+                    let prefilledVal = INITIAL_GRID[r][c];
+                    let userVal = board[r][c];
+
+                    if (prefilledVal !== '') {
+                        cell.classList.add('prefilled');
+                        cell.style.backgroundColor = COLORS[prefilledVal].code;
+                        if(COLORS[prefilledVal].border) cell.style.border = '1px solid #777';
+                        cell.innerText = prefilledVal;
+                    } else if (userVal !== '') {
+                        cell.style.backgroundColor = COLORS[userVal].code;
+                        if(COLORS[userVal].border) cell.style.border = '1px solid #777';
+                        cell.innerText = userVal;
+                    } else {
+                        cell.style.backgroundColor = 'var(--empty-grey)';
+                        if (notes[r][c] && notes[r][c].size > 0) {
+                            const notesContainer = document.createElement('div');
+                            notesContainer.className = 'notes-grid';
+                            const list = ['R','SB','G','P','B','W','Y','PL','BR'];
+                            list.forEach(abbr => {
+                                const item = document.createElement('div');
+                                item.className = 'note-item';
+                                item.innerText = notes[r][c].has(abbr) ? abbr : '';
+                                notesContainer.appendChild(item);
+                            });
+                            cell.appendChild(notesContainer);
+                        }
+                    }
+
+                    if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                        cell.classList.add('selected');
+                    }
+
+                    cell.addEventListener('click', () => selectCell(r, c));
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function renderPalette() {
+            const paletteEl = document.getElementById('color-palette');
+            paletteEl.innerHTML = '';
+            
+            const colorEntries = [
+                { id: 'R', label: 'Red' },
+                { id: 'SB', label: 'Sky Blue' },
+                { id: 'G', label: 'Green' },
+                { id: 'P', label: 'Pink' },
+                { id: 'B', label: 'Blue' },
+                { id: 'W', label: 'White' },
+                { id: 'Y', label: 'Yellow' },
+                { id: 'PL', label: 'Purple' },
+                { id: 'BR', label: 'Brown' }
+            ];
+
+            colorEntries.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = 'color-btn';
+                btn.style.backgroundColor = COLORS[item.id].code;
+                if(item.id === 'W') btn.style.border = '2px solid #777';
+                btn.title = `${item.id}: ${item.label}`;
+                btn.addEventListener('click', () => applyColor(item.id));
+                paletteEl.appendChild(btn);
+            });
+        }
+
+        function selectCell(r, c) {
+            if (!gameActive) return;
+            selectedCell = { r, c };
+            renderGrid();
+        }
+
+        function applyColor(colorKey) {
+            if (!gameActive || !selectedCell) {
+                showMsg("Please select an empty cell first!");
+                return;
+            }
+            let { r, c } = selectedCell;
+            if (INITIAL_GRID[r][c] !== '') {
+                showMsg("Cannot modify pre-filled puzzle cells.");
+                return;
+            }
+
+            history.push({
+                r, c, 
+                prevVal: board[r][c], 
+                prevNotes: new Set(notes[r][c]),
+                prevWrong: wrongCells[r][c]
+            });
+
+            if (pencilMode) {
+                if (notes[r][c].has(colorKey)) {
+                    notes[r][c].delete(colorKey);
+                } else {
+                    notes[r][c].add(colorKey);
+                }
+                showMsg(`Draft note ${colorKey} updated.`);
+            } else {
+                notes[r][c].clear();
+                board[r][c] = colorKey;
+
+                if (SOLUTION_GRID[r][c] === colorKey) {
+                    wrongCells[r][c] = false;
+                    score += 100;
+                    showMsg("Good pick, go ahead! (+100 points)");
+                    updateScoreDisplay();
+                    checkRowCompletion(r);
+                    checkWinCondition();
+                } else {
+                    wrongCells[r][c] = true;
+                    score = Math.max(0, score - 50);
+                    updateScoreDisplay();
+                    showMsg("Wrong pick! Marked with ❌. Try again or use a clue.");
+                }
+            }
+            renderGrid();
+        }
+
+        function checkRowCompletion(r) {
+            let rowComplete = true;
+            for (let c = 0; c < 9; c++) {
+                let currentKey = INITIAL_GRID[r][c] !== '' ? INITIAL_GRID[r][c] : board[r][c];
+                if (currentKey !== SOLUTION_GRID[r][c]) {
+                    rowComplete = false;
+                    break;
+                }
+            }
+
+            if (rowComplete && !completedRowsNotified[r]) {
+                completedRowsNotified[r] = true;
+                triggerRowStarAnimation(r);
+            }
+        }
+
+        function triggerRowStarAnimation(r) {
+            const gridEl = document.getElementById('game-grid');
+            const starBanner = document.createElement('div');
+            starBanner.className = 'row-star-banner';
+            starBanner.style.top = `${r * 88}px`;
+            starBanner.innerHTML = '⭐ ⭐ ⭐ ROW ' + (r + 1) + ' COMPLETED! ⭐ ⭐ ⭐';
+            gridEl.appendChild(starBanner);
+
+            setTimeout(() => {
+                starBanner.remove();
+            }, 1500);
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score-display').innerText = `Score: ${score}`;
+            document.getElementById('chances-display').innerText = `Clues: ${cluesLeft}`;
+            document.getElementById('clue-btn').innerText = `💡 Clue (${cluesLeft})`;
+        }
+
+        function checkWinCondition() {
+            let won = true;
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    let expectedKey = SOLUTION_GRID[r][c];
+                    let currentKey = INITIAL_GRID[r][c] !== '' ? INITIAL_GRID[r][c] : board[r][c];
+                    if (currentKey !== expectedKey) {
+                        won = false;
+                        break;
+                    }
+                }
+            }
+            if (won) {
+                gameActive = false;
+                clearInterval(timerInterval);
+                showMsg(`🎉 Congratulations! Winner! Your Final Score: ${score}`);
+                alert(`Game Won! You solved KTB's Colourful Kausalyaku logic puzzle successfully. Your Final Score: ${score}`);
+            }
+        }
+
+        document.getElementById('undo-btn').addEventListener('click', () => {
+            if (history.length === 0) {
+                showMsg("Nothing to undo!");
+                return;
+            }
+            const last = history.pop();
+            board[last.r][last.c] = last.prevVal;
+            notes[last.r][last.c] = last.prevNotes;
+            wrongCells[last.r][last.c] = last.prevWrong;
+            renderGrid();
+            showMsg("Last action reversed.");
+        });
+
+        document.getElementById('eraser-btn').addEventListener('click', () => {
+            if (!selectedCell) {
+                showMsg("Select a cell to erase.");
+                return;
+            }
+            let { r, c } = selectedCell;
+            if (INITIAL_GRID[r][c] !== '') {
+                showMsg("Cannot clear pre-filled cells.");
+                return;
+            }
+            history.push({ r, c, prevVal: board[r][c], prevNotes: new Set(notes[r][c]), prevWrong: wrongCells[r][c] });
+            board[r][c] = '';
+            notes[r][c].clear();
+            wrongCells[r][c] = false;
+            renderGrid();
+            showMsg("Cell cleared.");
+        });
+
+        const pencilBtn = document.getElementById('pencil-btn');
+        pencilBtn.addEventListener('click', () => {
+            pencilMode = !pencilMode;
+            pencilBtn.className = `tool-btn ${pencilMode ? 'active' : ''}`;
+            pencilBtn.innerText = `✏️ Pencil: ${pencilMode ? 'ON' : 'OFF'}`;
+            showMsg(`Pencil mode is now ${pencilMode ? 'ON (Draft Notes)' : 'OFF (Final Answers)'}`);
+        });
+
+        document.getElementById('clue-btn').addEventListener('click', () => {
+            if (cluesLeft <= 0) {
+                showMsg("No clues remaining!");
+                return;
+            }
+            let emptyCells = [];
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    if (INITIAL_GRID[r][c] === '' && board[r][c] === '') {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+            if (emptyCells.length === 0) {
+                showMsg("Board is already fully filled!");
+                return;
+            }
+            let target = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            board[target.r][target.c] = SOLUTION_GRID[target.r][target.c];
+            notes[target.r][target.c].clear();
+            wrongCells[target.r][target.c] = false;
+            cluesLeft--;
+            score += 50;
+            updateScoreDisplay();
+            renderGrid();
+            checkRowCompletion(target.r);
+            showMsg(`Clue revealed for Row ${target.r+1}, Col ${target.c+1}! (${cluesLeft} clues left)`);
+            checkWinCondition();
+        });
+
+        // Quit game refreshes automatically and displays the requested message
+        document.getElementById('quit-btn').addEventListener('click', () => {
+            gameActive = false;
+            if (timerInterval) clearInterval(timerInterval);
+            alert("Welcome Again to KTB's Colourful Kausalya Logic master game. Start play!");
+            location.reload();
+        });
+
+        function showMsg(txt) {
+            document.getElementById('msg-box').innerText = txt;
+        }
+    </script>
+</body>
+</html>
